@@ -1,0 +1,133 @@
+'''
+This code creates a GUI application called "Swoleboi" for real-time exercise form analysis (specifically designed for squat detection) using computer vision and machine learning. Let me break it down for you:
+Overview
+
+The application uses a camera feed to track body poses and count exercise repetitions in real-time, displaying the results in a modern dark-themed GUI.
+Key Components
+1. GUI Setup (Tkinter + CustomTkinter)
+pythonwindow = tk.Tk()
+window.geometry("480x700")
+ck.set_appearance_mode("dark")
+
+Creates a 480x700 pixel window with dark theme
+Uses CustomTkinter for modern-looking UI components
+
+2. Display Elements
+The GUI shows three main metrics:
+
+STAGE: Current exercise position ("up" or "down")
+REPS: Exercise repetition counter
+PROB: Confidence probability of the prediction
+
+3. Computer Vision Setup
+pythonmp_pose = mp.solutions.pose
+pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+
+Uses MediaPipe for real-time pose detection
+Detects 33 body landmarks (joints and key points)
+Draws skeleton overlay on the video feed
+
+4. Model Loading with Fallback
+The code tries to load a pre-trained ML model (model.pkl), but if it fails, it uses a dummy model:
+pythonclass DummyModel:
+    def predict(self, data):
+        # Simple logic based on shoulder and hip positions
+        shoulder_avg = (left_shoulder_y + right_shoulder_y) / 2
+        hip_avg = (left_hip_y + right_hip_y) / 2
+        hip_shoulder_diff = abs(hip_avg - shoulder_avg)
+        
+        if hip_shoulder_diff < 0.3:  # Person is squatting
+            return ['down']
+        else:
+            return ['up']
+How the dummy model works:
+
+Compares the vertical distance between shoulders and hips
+If they're close together (< 0.3 threshold), person is "down" (squatting)
+If they're far apart, person is "up" (standing)
+
+5. Camera Detection
+pythondef find_camera():
+    for i in range(5):  # Try camera indices 0-4
+        cap = cv2.VideoCapture(i)
+        if cap.isOpened():
+            # Test if camera actually works
+            return cap, i
+
+Automatically finds working camera (tries indices 0-4)
+Handles cases where no camera is available
+Includes camera switching functionality
+
+6. Main Detection Loop
+pythondef detect():
+    # Capture frame from camera
+    ret, frame = cap.read()
+    frame = cv2.flip(frame, 1)  # Mirror effect
+    
+    # Process with MediaPipe
+    results = pose.process(image)
+    
+    # Extract landmarks and make prediction
+    if results.pose_landmarks:
+        # Convert landmarks to feature vector
+        row = [landmark.x, landmark.y, landmark.z, landmark.visibility 
+               for landmark in pose_landmarks]
+        
+        # Predict exercise stage
+        bodylang_class = model.predict(X)[0]
+        
+        # Count reps (down → up = 1 rep)
+        if bodylang_class == "down" and current_stage != 'down':
+            current_stage = 'down'
+        elif bodylang_class == "up" and current_stage == 'down':
+            current_stage = 'up'
+            counter += 1
+How It Works
+
+Camera captures video → MediaPipe detects pose landmarks
+Landmarks converted to feature vector (132 values: 33 landmarks × 4 coordinates each)
+Model predicts exercise stage ("up" or "down")
+Rep counting logic: Transition from "down" to "up" increments counter
+GUI updates with current stage, rep count, and confidence
+Loop repeats every 10ms for smooth real-time processing
+
+Key Features
+
+Error Handling: Gracefully handles missing cameras, model files, or processing errors
+Visual Feedback: Shows pose skeleton overlay on video
+Camera Switching: Button to cycle through different camera sources
+Reset Functionality: Button to reset rep counter
+Status Monitoring: Shows camera connection status
+
+Use Case
+This is typically used for:
+
+Fitness Applications: Automatic rep counting during workouts
+Form Analysis: Monitoring exercise technique
+Physical Therapy: Tracking movement patterns
+Sports Training: Performance analysis
+
+The code is designed to be robust and user-friendly, working even without a trained model by falling back to basic geometric analysis of body positions.RetryClaude does not have the ability to run the code it generates yet.Claude can make mistakes. Please double-check responses. Sonnet 4import cv2
+import mediapipe as mp
+import pandas as pd
+import numpy as np
+import pickle
+import os
+import traceback
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, accuracy_score
+import time
+
+class DeadliftTrainer:
+    def __init__(self):
+        self.mp_pose = mp.solutions.pose
+        self.pose = self.mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+        self.mp_drawing = mp.solutions.drawing_utils
+        self.data = []
+        self.labels = []
+        self.model = None
+        
+    def extract_landmarks(self, results):
+        """Extract pose landmarks into a feature vector"""
+'''
